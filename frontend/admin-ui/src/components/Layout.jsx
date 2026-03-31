@@ -2,7 +2,7 @@ import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -22,7 +22,7 @@ export default function Layout() {
           </span>
           <nav style={{ display: 'flex', gap: '4px' }}>
             <NavLink
-              to="/users"
+              to="/profile"
               style={({ isActive }) => ({
                 color: isActive ? '#fff' : '#a0aec0',
                 padding: '6px 12px',
@@ -32,11 +32,40 @@ export default function Layout() {
                 background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
               })}
             >
-              Users
+              My Profile
             </NavLink>
+            {isAdmin && (
+              <NavLink
+                to="/users"
+                style={({ isActive }) => ({
+                  color: isActive ? '#fff' : '#a0aec0',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontWeight: 500,
+                  fontSize: '14px',
+                  background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
+                })}
+              >
+                Users
+              </NavLink>
+            )}
           </nav>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {isAdmin && (
+            <span style={{
+              background: '#3b6ef8',
+              color: '#fff',
+              fontSize: '11px',
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.4px'
+            }}>
+              Admin
+            </span>
+          )}
           <span style={{ color: '#a0aec0', fontSize: '13px' }}>
             Signed in as <strong style={{ color: '#fff' }}>{user?.username}</strong>
           </span>

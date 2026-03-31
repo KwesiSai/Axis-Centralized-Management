@@ -4,10 +4,18 @@ import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import UsersPage from './pages/UsersPage';
 import UserDetailPage from './pages/UserDetailPage';
+import ProfilePage from './pages/ProfilePage';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
   return user ? children : <Navigate to="/login" replace />;
+}
+
+function AdminRoute({ children }) {
+  const { user, isAdmin } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isAdmin) return <Navigate to="/profile" replace />;
+  return children;
 }
 
 export default function App() {
@@ -22,11 +30,12 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/users" replace />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="users/:id" element={<UserDetailPage />} />
+        <Route index element={<Navigate to="/profile" replace />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="users" element={<AdminRoute><UsersPage /></AdminRoute>} />
+        <Route path="users/:id" element={<AdminRoute><UserDetailPage /></AdminRoute>} />
       </Route>
-      <Route path="*" element={<Navigate to="/users" replace />} />
+      <Route path="*" element={<Navigate to="/profile" replace />} />
     </Routes>
   );
 }

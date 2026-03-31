@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text;
 using UserManagementAPI.Data;
 using UserManagementAPI.DTOs;
+using UserManagementAPI.Models;
 
 namespace UserManagementAPI.Controllers;
 
@@ -22,11 +23,47 @@ public class AuthController : ControllerBase
         _config = config;
     }
 
+    // POST /api/auth/register-admin
+    // One-time endpoint — blocked once an admin already exists
+    [HttpPost("register-admin")]
+    public async Task<IActionResult> RegisterAdmin([FromBody] RegisterAdminDto dto)
+    {
+        // Validate secret key to prevent random people hitting this endpoint
+        var expectedSecret = _config["AdminRegistration:SecretKey"];
+        if (string.IsNullOrEmpty(expectedSecret) || dto.SecretKey != expectedSecret)
+            return Unauthorized(new { message = "Invalid secret key." });
+
+        // Block if admin already exists
+        var adminExists = await _context.Users.AnyAsync(u => u.Role == "Admin");
+
+        if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Password))
+            return BadRequest(new { message = "Username and password are required." });
+
+        if (dto.Password.Length < 6)
+            return BadRequest(new { message = "Password must be at least 6 characters." });
+
+        var usernameExists = await _context.Users.AnyAsync(u => u.Username == dto.Username);
+        if (usernameExists)
+            return Conflict(new { message = "Username already taken." });
+
+        var admin = new User
+        {
+            Username = dto.Username,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            Role = "Admin",
+            IsActive = true
+        };
+
+        _context.Users.Add(admin);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = $"Admin account '{dto.Username}' created successfully." });
+    }
+
     // POST /api/auth/login
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        // 1. Find user
         var user = await _context.Users
             .Include(u => u.UserApplications)
                 .ThenInclude(ua => ua.Application)
@@ -35,30 +72,30 @@ public class AuthController : ControllerBase
         if (user is null || !user.IsActive)
             return Unauthorized(new { message = "Invalid credentials or account is inactive." });
 
-        // 2. Verify password
         if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             return Unauthorized(new { message = "Invalid credentials or account is inactive." });
 
-        // 3. Check application access
-        var app = await _context.Applications
-            .FirstOrDefaultAsync(a => a.Name == dto.Application);
+        // Admin bypasses application access check
+        if (user.Role != "Admin")
+        {
+            var app = await _context.Applications
+                .FirstOrDefaultAsync(a => a.Name == dto.Application);
 
-        if (app is null)
-            return BadRequest(new { message = $"Application '{dto.Application}' does not exist." });
+            if (app is null)
+                return BadRequest(new { message = $"Application '{dto.Application}' does not exist." });
 
-        var hasAccess = user.UserApplications.Any(ua => ua.ApplicationId == app.Id);
-        if (!hasAccess)
-            return Unauthorized(new { message = $"Access denied to '{dto.Application}'." });
+            var hasAccess = user.UserApplications.Any(ua => ua.ApplicationId == app.Id);
+            if (!hasAccess)
+                return Unauthorized(new { message = $"Access denied to '{dto.Application}'." });
+        }
 
-        // 4. Issue JWT
-        var token = GenerateJwt(user.Id, user.Username, dto.Application);
-
+        var token = GenerateJwt(user.Id, user.Username, user.Role, dto.Application);
         var appNames = user.UserApplications.Select(ua => ua.Application.Name).ToList();
 
-        return Ok(new LoginResponseDto(token, user.Username, appNames));
+        return Ok(new LoginResponseDto(token, user.Username, user.Role, appNames));
     }
 
-    private string GenerateJwt(int userId, string username, string application)
+    private string GenerateJwt(int userId, string username, string role, string application)
     {
         var jwtKey = _config["Jwt:Key"] ?? throw new InvalidOperationException("JWT key not configured.");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
@@ -68,6 +105,7 @@ public class AuthController : ControllerBase
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, username),
+            new Claim(ClaimTypes.Role, role),
             new Claim("application", application),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };

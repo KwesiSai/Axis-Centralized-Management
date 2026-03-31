@@ -11,9 +11,9 @@ export function AuthProvider({ children }) {
 
   const login = async (username, password, application) => {
     const res = await apiLogin(username, password, application);
-    const { token, username: name, applications } = res.data;
+    const { token, username: name, role, applications } = res.data;
     localStorage.setItem('token', token);
-    const userData = { username: name, applications };
+    const userData = { username: name, role, applications };
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     return userData;
@@ -25,8 +25,10 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const isAdmin = user?.role === 'Admin';
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

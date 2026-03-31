@@ -13,8 +13,12 @@ api.interceptors.request.use((config) => {
 export const login = (username, password, application) =>
   api.post('/auth/login', { username, password, application });
 
+export const registerAdmin = (username, password, secretKey) =>
+  api.post('/auth/register-admin', { username, password, secretKey });
+
 // ── Users ─────────────────────────────────────────────────────────────────────
 export const getUsers = () => api.get('/users');
+export const getMe = () => api.get('/users/me');
 export const getUser = (id) => api.get(`/users/${id}`);
 export const createUser = (username, password) =>
   api.post('/users', { username, password });
