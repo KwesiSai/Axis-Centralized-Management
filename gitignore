@@ -1,0 +1,17 @@
+# ── Backend ───────────────────────────────────────────────────────────────────
+backend/UserManagementAPI/bin/
+backend/UserManagementAPI/obj/
+backend/UserManagementAPI/appsettings.Development.json
+*.user
+.vs/
+
+# ── Frontend ──────────────────────────────────────────────────────────────────
+frontend/admin-ui/node_modules/
+frontend/admin-ui/dist/
+frontend/admin-ui/.env
+frontend/admin-ui/.env.local
+
+# ── General ───────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
